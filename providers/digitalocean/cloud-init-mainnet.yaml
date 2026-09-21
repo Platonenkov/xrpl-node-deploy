@@ -17,7 +17,7 @@ runcmd:
   - apt install -y xrpld
   - systemctl stop xrpld || true
   - mkdir -p /etc/xrpld
-  - curl -o /etc/xrpld/xrpld.cfg https://yourdomain.com/configs/rippled-light.cfg
+  - curl -o /etc/xrpld/xrpld.cfg https://files.example.org/xrpl/rippled-light.cfg
   - mkdir -p /var/log/xrpld
   - chown xrpld:xrpld /var/log/xrpld
   - systemctl enable xrpld

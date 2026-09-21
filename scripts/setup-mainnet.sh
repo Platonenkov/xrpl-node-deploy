@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
-CONFIG_URL="https://xrpl.node.staticbit.io/configs/rippled-light.cfg"
+# Where to fetch the node configuration from. Leave it empty to keep the configuration the
+# package ships, which is a working node that simply keeps more history than most deployments
+# want. Publish one of the files from configs/ and point this at it:
+#   sudo CONFIG_URL=https://files.example.org/xrpl/rippled-light.cfg bash scripts/setup-mainnet.sh
+CONFIG_URL="${CONFIG_URL:-}"
 CONFIG_PATH="/etc/xrpld/xrpld.cfg"
 KEYRING_PATH="/etc/apt/keyrings/xrplf.asc"
 RIPPLE_LIST="/etc/apt/sources.list.d/xrplf.list"
 LOG_DIR="/var/log/xrpld"
 
 echo "========================================"
-echo " XRPL Mainnet Node Setup (StaticBit)"
-echo " Domain config URL: ${CONFIG_URL}"
+echo " XRPL mainnet node setup"
+echo " Config source: ${CONFIG_URL:-packaged default}"
 echo "========================================"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -51,16 +55,18 @@ systemctl stop xrpld || true
 echo "[*] Создаем каталог /etc/xrpld (если нет)..."
 mkdir -p /etc/xrpld
 
-echo "[*] Скачиваем конфиг из ${CONFIG_URL} в ${CONFIG_PATH}..."
-curl -fsSL "${CONFIG_URL}" -o "${CONFIG_PATH}"
-
-if [ $? -ne 0 ]; then
-  echo "[!] Не удалось скачать конфиг с ${CONFIG_URL}"
-  echo "    Проверь, что файл доступен по HTTPS и домен настроен."
-  exit 1
+if [ -n "${CONFIG_URL}" ]; then
+  echo "[*] Fetching the configuration from ${CONFIG_URL}"
+  # curl -f already fails the script through set -e; the message says which URL was wrong.
+  if ! curl -fsSL "${CONFIG_URL}" -o "${CONFIG_PATH}"; then
+    echo "[!] Could not download the configuration from ${CONFIG_URL}"
+    echo "    The URL has to serve the file as plain text over HTTPS."
+    exit 1
+  fi
+  echo "[+] Configuration written to ${CONFIG_PATH}"
+else
+  echo "[*] No CONFIG_URL given, keeping the configuration the package installed"
 fi
-
-echo "[+] Конфиг успешно сохранён в ${CONFIG_PATH}"
 
 echo "[*] Создаём каталог логов ${LOG_DIR}..."
 mkdir -p "${LOG_DIR}"

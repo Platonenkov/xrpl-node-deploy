@@ -32,6 +32,16 @@ Paths the package installs: binary `/usr/bin/xrpld`, config `/etc/xrpld/xrpld.cf
 | `docker/` | `Dockerfile` and one compose file per network |
 | `providers/` | cloud-init and user-data for AWS, DigitalOcean, Hetzner |
 | `scripts/` | bare-metal install, and the amendment list generator |
+| `docs/` | the guides listed below |
+
+## Documentation
+
+| Page | Read it when |
+| --- | --- |
+| [Configuration profiles](docs/profiles.md) | choosing how much history to keep, and what it costs |
+| [Run a mainnet node on bare metal](docs/mainnet-bare-metal.md) | installing on a server, including public WSS over TLS |
+| [Deploy from a provider template](docs/cloud-providers.md) | first-boot deployment on AWS, DigitalOcean or Hetzner |
+| [Amendments on a standalone chain](docs/standalone-amendments.md) | the local chain behaves like an older node, or refuses to start |
 
 ## Quick start
 
@@ -125,9 +135,3 @@ name, and starting the node catches it immediately.
 
 `rippled-validator.cfg` carries an empty `[validator_token]` stanza with a placeholder. The token
 comes from the `validator-keys` tool and does not belong in a repository.
-
-## A note on language
-
-The top-level documentation is English. Several files under `configs/`, `providers/` and
-`scripts/` still carry Russian notes from before this pack was published; they are accurate, just
-not translated yet.
