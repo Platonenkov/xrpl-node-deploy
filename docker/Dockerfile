@@ -22,7 +22,15 @@ RUN echo "deb [signed-by=/etc/apt/keyrings/xrplf.asc] https://packages.xrplf.org
     && apt-get install -y --no-install-recommends "xrpld=${XRPLD_VERSION}" \
     && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 5005 6006 51235
+# setpriv comes from util-linux, already in the base image; the entrypoint uses it to drop
+# privileges after fixing the data directory.
+RUN id -u xrpld >/dev/null 2>&1 || useradd --system --home-dir /var/lib/xrpld --shell /usr/sbin/nologin xrpld
 
-USER xrpld
-ENTRYPOINT ["/usr/bin/xrpld", "--conf", "/etc/xrpld/xrpld.cfg"]
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh
+
+EXPOSE 5005 5006 6006 51235
+
+# Runs as root only long enough to chown the mounted data directory; the node itself runs
+# as xrpld. See entrypoint.sh.
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
