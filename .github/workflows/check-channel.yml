@@ -21,6 +21,15 @@ on:
   schedule:
     - cron: '0 7 * * 1'
   workflow_dispatch:
+  # Commits land on main directly here, so push is the trigger that actually guards changes;
+  # pull_request is kept for when one is opened.
+  push:
+    branches: [main]
+    paths:
+      - 'configs/**'
+      - 'docker/**'
+      - 'scripts/**'
+      - '.github/workflows/check-channel.yml'
   pull_request:
     paths:
       - 'configs/**'
