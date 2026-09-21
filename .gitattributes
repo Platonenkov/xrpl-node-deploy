@@ -1,0 +1,9 @@
+# Everything here is consumed on Linux: shell scripts run through a shebang, cloud-init and
+# user-data are pasted into a provider, and a CRLF in any of them fails with "bad interpreter"
+# or a silently mis-parsed directive. Keep them LF whatever the checkout platform does.
+* text=auto eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.cfg text eol=lf
+Dockerfile text eol=lf
