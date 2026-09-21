@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  rippled-devnet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xrpld-local
+    container_name: xrpl-devnet
+    restart: unless-stopped
+    environment:
+      - NETWORK=devnet
+    volumes:
+      - ../configs/rippled-light.cfg:/etc/xrpld/xrpld.cfg:ro
+      - ./data-devnet:/var/lib/xrpld
+    ports:
+      - "25005:5005"
+      - "26006:6006"
+      - "251235:51235"

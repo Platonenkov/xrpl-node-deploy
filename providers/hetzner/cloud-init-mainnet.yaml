@@ -1,0 +1,26 @@
+#cloud-config
+package_update: true
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - wget
+  - gnupg
+  - lsb-release
+
+runcmd:
+  - sysctl -w net.core.somaxconn=1024
+  - sysctl -w net.ipv4.tcp_tw_reuse=1
+  - mkdir -p /etc/apt/keyrings
+  - wget -qO- https://packages.xrplf.org/xrplf.asc > /etc/apt/keyrings/xrplf.asc
+  - |
+    CODENAME=$(lsb_release -sc)
+    echo "deb [signed-by=/etc/apt/keyrings/xrplf.asc] https://packages.xrplf.org/repository/deb-stable any main" > /etc/apt/sources.list.d/xrplf.list
+  - apt update
+  - apt install -y xrpld
+  - systemctl stop xrpld || true
+  - mkdir -p /etc/xrpld
+  - curl -o /etc/xrpld/xrpld.cfg https://yourdomain.com/configs/rippled-api.cfg
+  - mkdir -p /var/log/xrpld
+  - chown xrpld:xrpld /var/log/xrpld
+  - systemctl enable xrpld
+  - systemctl start xrpld

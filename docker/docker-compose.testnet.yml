@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  rippled-testnet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xrpld-local
+    container_name: xrpl-testnet
+    restart: unless-stopped
+    environment:
+      - NETWORK=testnet
+    volumes:
+      - ../configs/rippled-light.cfg:/etc/xrpld/xrpld.cfg:ro
+      - ./data-testnet:/var/lib/xrpld
+    ports:
+      - "15005:5005"
+      - "16006:6006"
+      - "151235:51235"
+
+#Для Testnet обычно используют отдельный образ или конфиг с testnet-ипами, 
+#но как шаблон это норм: ты можешь 
+#поправить [ips] на testnet (s.altnet.rippletest.net и т.д.) при необходимости.

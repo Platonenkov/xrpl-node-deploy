@@ -1,0 +1,39 @@
+2. Дать доступ сервису rippled к ключам
+
+По умолчанию Let's Encrypt разрешает доступ только root.
+Выполним:
+```
+sudo usermod -aG ssl-cert rippled
+sudo chmod 640 /etc/letsencrypt/live/xrpl.node.staticbit.io/privkey.pem
+sudo chmod 644 /etc/letsencrypt/live/xrpl.node.staticbit.io/fullchain.pem
+sudo chown root:ssl-cert /etc/letsencrypt/live/xrpl.node.staticbit.io/privkey.pem
+```
+Теперь rippled сможет прочитать сертификат.
+3. Перезапуск rippled
+`sudo systemctl restart xrpld`
+
+Проверяем:`rippled server_info`
+
+
+И WSS так:
+`wscat -c wss://xrpl.node.staticbit.io:6006`
+
+❗ Автоматическое обновление сертификата
+
+Создай hook:
+```
+sudo nano /etc/letsencrypt/renewal-hooks/post/rippled-reload.sh
+```
+
+Вставь:
+```
+#!/bin/bash
+systemctl reload rippled
+```
+
+Дай права:
+```
+sudo chmod +x /etc/letsencrypt/renewal-hooks/post/rippled-reload.sh
+```
+
+Теперь Let’s Encrypt будет перезагружать rippled при каждом обновлении.

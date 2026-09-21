@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  xrpld:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xrpld-local
+    container_name: xrpl-standalone
+    command: ["-a", "--start"]
+    ports:
+      - "5005:5005"
+      - "5006:5006"
+      - "6006:6006"
+    volumes:
+      - ./data-standalone:/var/lib/xrpld
+      - ../configs/rippled-standalone.cfg:/etc/xrpld/xrpld.cfg:ro
+      - ../configs/validators.txt:/etc/xrpld/validators.txt:ro
+    restart: unless-stopped
+
+  xrpl-ledger-acceptor:
+    image: curlimages/curl:latest
+    container_name: xrpl-ledger-acceptor
+    depends_on:
+      - xrpld
+    entrypoint:
+      - sh
+      - -c
+      - |
+        sleep 3
+        while true; do
+          curl -s -X POST http://xrpld:5006/ \
+            -H "Content-Type: application/json" \
+            -d '{"method":"ledger_accept"}'
+          sleep 4
+        done
+    restart: unless-stopped

@@ -1,0 +1,127 @@
+name: Channel and stand check
+
+# Why this exists.
+#
+# This pack rotted silently once. It pointed at repos.ripple.com, which kept answering 200 with a
+# valid apt index long after it stopped receiving builds: its stable channel ends at 3.3.0 and
+# never received 3.4.0. Nothing here could tell the difference between a repository that is
+# reachable and one that is alive, so `setup-mainnet.sh | bash` quietly installed a node a release
+# behind, and the configs listed amendments that a current rippled rejects at startup.
+#
+# So this workflow does not ask whether the host answers. It asks two questions that a frozen
+# channel and a stale config cannot both pass:
+#
+#   1. Is the pinned version still the newest in deb-stable, and how old is the newest?
+#      A channel that stops moving shows up as an age that keeps growing.
+#   2. Does a node actually start from these files? The standalone stand is raised for real. That
+#      is what catches a retired amendment name in a config - the failure mode that took the pack
+#      down after 3.4.0, and one no amount of reading the diff would have found.
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'configs/**'
+      - 'docker/**'
+      - 'scripts/**'
+      - '.github/workflows/check-channel.yml'
+
+permissions:
+  contents: read
+
+env:
+  PACKAGES_URL: https://packages.xrplf.org/repository/deb-stable/dists/any/main/binary-amd64/Packages
+  DOCKERFILE: docker/Dockerfile
+  # How far behind the channel's newest build the pin may fall before this is called out.
+  MAX_AGE_DAYS: 45
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare the pin against deb-stable
+        run: |
+          set -euo pipefail
+
+          pinned=$(sed -n -E 's/^ARG XRPLD_VERSION=(.+)$/\1/p' "$DOCKERFILE")
+          if [ -z "$pinned" ]; then
+            echo "::error::could not read ARG XRPLD_VERSION from $DOCKERFILE"
+            exit 1
+          fi
+
+          packages=$(curl -sf --max-time 60 "$PACKAGES_URL") || {
+            echo "::error::could not fetch $PACKAGES_URL"
+            exit 1
+          }
+
+          newest=$(printf '%s\n' "$packages" \
+            | awk '/^Package: xrpld$/ { p = 1; next } /^Version: / { if (p) print $2; p = 0 }' \
+            | LC_ALL=C sort -V | tail -1)
+          if [ -z "$newest" ]; then
+            echo "::error::no xrpld package in the deb-stable index - the channel layout may have changed again"
+            exit 1
+          fi
+
+          echo "pinned:  $pinned"
+          echo "newest:  $newest"
+
+          # A reachable index is not a live one, so the age of its newest build is the signal that
+          # matters. Debian releases roughly monthly; a channel whose newest build predates
+          # MAX_AGE_DAYS has either stopped or moved elsewhere, and both need a human.
+          last_modified=$(curl -sfI --max-time 30 "$PACKAGES_URL" | tr -d '\r' \
+            | sed -n -E 's/^[Ll]ast-[Mm]odified: (.+)$/\1/p')
+          if [ -n "$last_modified" ]; then
+            age=$(( ( $(date -u +%s) - $(date -u -d "$last_modified" +%s) ) / 86400 ))
+            echo "index last modified: $last_modified (${age}d ago)"
+            if [ "$age" -gt "$MAX_AGE_DAYS" ]; then
+              echo "::warning::the deb-stable index has not changed in ${age} days - check whether packaging moved again"
+            fi
+          fi
+
+          if [ "$pinned" != "$newest" ]; then
+            echo "::warning::pin $pinned is behind $newest; bump ARG XRPLD_VERSION in $DOCKERFILE and rerun scripts/generate-amendments.sh"
+          else
+            echo "Pin is the newest build in deb-stable."
+          fi
+
+      - name: Start the standalone stand
+        working-directory: docker
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.standalone.yml up -d --build
+
+      - name: Wait for the node to answer
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            state=$(curl -s --max-time 5 -H 'Content-Type: application/json' \
+              -d '{"method":"server_info","params":[{}]}' http://127.0.0.1:5005/ \
+              | sed -n -E 's/.*"server_state" *: *"([a-z]+)".*/\1/p') || true
+            if [ -n "$state" ]; then
+              echo "server_state=$state"
+              # A standalone node reports proposing or validating once it is up; anything else
+              # means it started but is not usable.
+              case "$state" in
+                proposing|validating|full) exit 0 ;;
+              esac
+            fi
+            sleep 5
+          done
+          echo "::error::the node never reported a usable server_state"
+          exit 1
+
+      - name: Node log on failure
+        if: failure()
+        working-directory: docker
+        run: docker compose -f docker-compose.standalone.yml logs --no-color --tail 80 xrpld || true
+
+      - name: Stop the stand
+        if: always()
+        working-directory: docker
+        run: docker compose -f docker-compose.standalone.yml down -v || true

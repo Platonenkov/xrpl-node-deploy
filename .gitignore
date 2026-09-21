@@ -1,0 +1,3 @@
+# Node databases created by the compose files. A standalone run reaches a gigabyte
+# within minutes; mainnet reaches terabytes.
+docker/data-*/

@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  rippled:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xrpld-local
+    container_name: xrpl-mainnet
+    restart: unless-stopped
+    volumes:
+    #При желании можешь заменить rippled-api.cfg на rippled-light.cfg или любой другой.
+    #│  ├─ rippled-light.cfg
+    #│  ├─ rippled-api.cfg
+    #│  ├─ rippled-extended.cfg
+    #│  ├─ rippled-validator.cfg
+    #│  ├─ rippled-full.cfg
+      - ../configs/rippled-api.cfg:/etc/xrpld/xrpld.cfg:ro
+      - ./data-mainnet:/var/lib/xrpld
+    ports:
+      - "5005:5005"   # RPC
+      - "6006:6006"   # WS
+      - "51235:51235" # peer
